@@ -1,0 +1,469 @@
+---
+title: "FPCC2-Lab2.2 - Temperatura JP x CG - Prof. Fábio Morais"
+author: "Aluno: Ramon Nóbrega dos Santos"
+theme: sandstone
+output:
+  html_document: null
+  pdf_document: default
+  df_print: paged
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggbeeswarm)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+theme_set(theme_bw())
+```
+
+```{r read}
+climas = read_csv(here::here("data/clima_cg_jp-semanal.csv"), 
+                  col_types = "cTdddddd")
+
+glimpse(climas)
+```
+
+## Temperatura
+Questão 1: Selecionar uma pergunta do lab 2.1 para ser respondida novamente considerando o feedback do professor.
+A pergunta selecionada foi a seguinte:
+**"As temperaturas máxima semanais (o pico de calor) são tão diferentes quanto as médias? Mais?**
+Pelo feedback fornecido, deveria ser feita uma melhor análise da dispersão dos dados.
+
+
+```{r}
+semanais<- climas %>%
+   group_by(cidade,mes,ano,semana) %>%
+     mutate(dif_temp_max_med=tmax-tmedia, amplitude=tmax-tmin)%>%
+    arrange(desc(dif_temp_max_med))
+
+  glimpse(semanais)
+
+```
+
+Analisando as temperaturas médias semanais da cidade de João Pessoa
+```{r}
+semanais_jp<-semanais %>% filter(cidade=="João Pessoa")
+summary(semanais_jp$tmedia)
+```
+
+Analisando as temperaturas médias semanais da cidade de Campina Grande
+```{r}
+semanais_cg<-semanais %>% filter(cidade=="Campina Grande")
+summary(semanais_cg$tmedia)
+```
+
+Pela análise dos dados, percebe-se que a cidade de João Pessoa possui uma média de temperatura semanal média de 27.65ºC enquanto
+Campina Grande possui 24.69ºC.
+
+Analisando as temperaturas máximas semanais da cidade de João Pessoa
+```{r}
+semanais_jp<-semanais %>% filter(cidade=="João Pessoa")
+summary(semanais_jp$tmax)
+```
+
+Analisando as temperaturas máximas semanais da cidade de João Pessoa
+```{r}
+semanais_cg<-semanais %>% filter(cidade=="Campina Grande")
+summary(semanais_cg$tmax)
+```
+
+Pela análise dos dados, percebe-se que a cidade de João Pessoa possui uma média de temperatura semanal máxima de 30.67ºC enquanto
+Campina Grande possui média de 30.32ºC.
+
+
+Analisando as diferenças de máximas e médias semanais na cidade de João Pessoa
+```{r}
+semanais_jp<-semanais %>% filter(cidade=="João Pessoa")
+summary(semanais_jp$dif_temp_max_med)
+```
+
+Analisando as diferenças de máximas e médias semanais na cidade de Campina Grande
+```{r}
+semanais_cg<-semanais %>% filter(cidade=="Campina Grande")
+summary(semanais_cg$dif_temp_max_med)
+```
+
+Pela análise dos dados, percebe-se que a cidade de Campina Grande possui diferença entra as médias
+máximas e médias de temperaturas semanais de 5,626ºC, já João Pessoa possui média de 3.020ºC.
+
+
+A próxima análise que será feita é um histograma das diferenças entre as temperaturas máximas
+e médias ao longo das semanas.
+
+```{r}
+hist_dif_temperatura = 
+    ggplot(data=semanais,aes(x = dif_temp_max_med)) + 
+    geom_histogram(binwidth = 0.1, color = "#F6511D", fill = "white")+
+   labs(
+        title = "Gráfico 1 - Histograma de dif_temp_max_med - JP x CG",
+        position="plot",
+        x = "dif.temp.máx.e média" ,
+        y = "Freq"
+    )
+hist_dif_temperatura
+```
+
+Pela análise do **Gráfico 1** é possível constatar que existe uma grande quantidade de semanas com diferença
+entre as temperaturas máximas e médias entre 2 e 7ºC.
+
+
+A seguir, iremos calcular estatísticas sobre os dados das diferenças conjuntas das duas cidades para sabermos mais informações
+sobre essas diferenças.
+```{r}
+summary(semanais$dif_temp_max_med)
+sd(semanais$dif_temp_max_med)
+
+```
+
+Como média das diferenças é de 4.181ºC com desvio-padrão de 1,47ºC.
+
+
+A seguir, um gráfico de dispersão comparando as temperaturas máximas e médias a partir da análise do
+**Gráfico 2** a seguir.
+
+```{r}
+g1<-ggplot(semanais, aes(x= tmedia, y=tmax ,color=cidade))+
+  geom_point()+
+     geom_smooth(aes(x = tmedia, y = tmax ), method = lm, se = FALSE)+
+    labs(
+        title = "Gráfico 2 - Temperaturas médias e máximas - JP x CG",
+        position="plot",
+        x = "temp.média" ,
+        y = "temp.máxima"
+    )
+g1
+
+```
+
+Pela análise do **Gráfico 2**, constata-se que a cidade de Campina Grande possui, de forma geral, menores 
+temperaturas máximas semanais. Já a cidade de João Pessoa, possui de forma geral, maiores temperaturas
+médias.Verificamos correlações entre as variáveis temperaturas máximas e médias semanais
+nas cidades de João Pessoa e Campina Grande. A seguir, iremos calcular as forças dessas correlações.
+
+```{r}
+semanais %>% 
+  filter(!is.na(tmedia), !is.na(tmax)) %>% 
+  group_by(cidade) %>% 
+  summarise(
+    pearson = cor(tmedia,tmax,method = "pearson"), 
+    spearman = cor(tmedia,tmax, method = "spearman"), 
+    kendall = cor(tmedia,tmax, method = "kendall")
+  )
+```
+
+A partir dos resultados das correlações, percebemos uma relação forte entre as variáveis temperatura máxima semanal
+e temperatura média semanal. 
+
+
+```{r}
+dados_cg<-semanais%>%filter(cidade=="Campina Grande")
+regressao_cg<-lm(tmax~tmedia,data=dados_cg) 
+regressao_cg
+summary(regressao_cg)
+
+```
+
+
+Fazendo a mesma análise para a cidade de João Pessoa:
+```{r}
+dados_jp<-semanais%>%filter(cidade=="João Pessoa")
+regressao_jp<-lm(tmax~tmedia,data=dados_jp) 
+regressao_jp
+summary(regressao_jp)
+```
+Queremos agora entender como esses dados estão distribuídos, para isso, será impresso
+o **Gráfico 3** que compara os boxplots das cidades de João Pessoa e Campina Grande.
+
+# boxplot
+```{r}
+  box_temperaturas_max_semanais = semanais %>%
+   ggplot(aes(x = cidade, y = tmax)) + 
+   geom_boxplot(coef = 1000, width = .2) +
+   scale_y_continuous(name="Temp. Máxima Semanal",breaks=seq(15,40, by = 1))
+
+   box_temperatura_media_semanais = semanais %>% 
+   ggplot(aes(x = cidade, y = tmedia)) + 
+   geom_boxplot(coef = 1000, width = .2)+
+   scale_y_continuous(name="Temp. Média Semanal",breaks=seq(15,40, by = 1))
+   
+
+   grid.arrange (box_temperaturas_max_semanais,  box_temperatura_media_semanais ,ncol = 3,
+    top = textGrob("Gráfico 3 - Temperatura Média (Máxima semanal x Média semanal x Dif.Máxima e Média)",gp=gpar(fontsize=12)))
+```
+
+Pela análise dos boxplots, percebemos que as temperaturas máximas semanais de João Pessoa possuem uma maior
+variação do que as de Campina Grande. Ambas as cidades possuem médias de temperaturas máximas muito próximas.
+Já na análise da temperatura média semanal, de forma geral, a cidade de João Pessoa possui temperaturas médias
+maiores do que a cidade de Campina Grande.
+
+Fazendo uma análise conjunta das diferenças entre as temperaturas média e máximas contemplando as duas cidades, 
+temos a seguinte tabela:
+ 
+ ```{r}  
+    tabela_organizada <- data.frame(Tipo = c("Média temperaturas máximas", "Média temperaturas médias", "Diferença das médias"),     media = c(mean(semanais$tmax),mean(semanais$tmedia) , mean(semanais$dif_temp_max_med)), desvio = c(sd(semanais$tmax),sd(semanais$tmedia) , sd(semanais$dif_temp_max_med)) )
+    
+    kable(tabela_organizada, format = 'html') %>%
+    kable_styling(bootstrap_options = c('hover', 'striped'))
+```
+Pela análise da tabela acima, perceba que as diferenças entre as temperaturas máximas semanais e as temperaturas médias semanais. Diante da análise, podemos dizer que as temperaturas de pico diferem das temperaturas médias com diferença média de 4,18ºC. Para facilitar, veja o **Gráfico 4** que mostra a diferença global entre as temperaturas médias nas cidades de João Pessoa e Campina Grande. Já o **Gráfico 5** mostra a diferença global entre as temperaturas máximas (picos de temperatura) nas cidades de João Pessoa e Campina Grande. No **Gráfico 6** é mostrado um gráfico de densidade focando nas diferenças entre esses temperaturas.
+
+
+```{r}
+semanais %>%
+    ggplot(aes(x = tmedia, fill = cidade)) + 
+    geom_density(alpha = .4)+
+   labs(
+        title = "Gráfico 4 - Densidade de temperaturas médias - JP x CG",
+        position="plot",
+        x = "temp.média" ,
+        y = "densidade"
+    )
+```
+
+Pela análise do **Gráfico 4** perceba que na cidade de João Pessoa a distribuição de densidade de temperaturas
+médias possui maiores temperaturas médias do que Campina Grande.
+
+```{r}
+semanais %>%
+    ggplot(aes(x = tmax, fill = cidade)) + 
+    geom_density(alpha = .4)+
+     labs(
+        title = "Gráfico 5 - Densidade de temperaturas máximas - JP x CG",
+        position="plot",
+        x = "temp.máxima" ,
+        y = "densidade"
+    )
+```
+
+Pela análise do **Gráfico 5** perceba que a cidade de Campina Grande possui uma maior frequência de temperaturas máximas
+contemplando valores de 25 a 35ªC. Já em João Pessoa, de forma geral, os picos de temperatura partem de 27,5ºC e chegam
+próximo de 35ºC.
+
+```{r}
+semanais %>%
+    ggplot(aes(x = amplitude, fill = cidade)) + 
+    geom_density(alpha = .4)+
+     labs(
+        title = "Gráfico 6 - Densidade de amplitudes de temperaturas - JP x CG",
+        position="plot",
+        x = "dif.temp.máxima e média" ,
+        y = "densidade"
+    )
+
+```
+ 
+Pela análise do **Gráfico 6** fica bastante visível que a cidade de Campina Grande possui diferenças entre as médias e as máximas
+bem superiores a cidade de João Pessoa.
+
+
+<br></br><br><br/>
+   
+
+
+
+### PERGUNTA 1: Qual a cidade que possui maior amplitude térmica? Faça análise gráficas explicando cenários variados.
+
+Para o cálculo da amplitude térmica, teremos que considerar a diferença entre as temperaturas máximas e mínimas.
+Primeiramente, faremos uma análise da amplitude geral nas cidades de João Pessoa e Campina Grande.
+
+```{r}
+semanais<- climas %>%
+   group_by(cidade,mes,ano,semana) %>%
+     mutate(amplitude=tmax-tmin)%>%
+    arrange(desc(amplitude))
+
+  semanais  
+  glimpse(semanais)
+  summary(semanais$amplitude)
+
+``` 
+
+Analisando a amplitude na cidade de João Pessoa
+```{r}
+semanais_jp<-semanais %>% filter(cidade=="João Pessoa")
+summary(semanais_jp$amplitude)
+```
+
+Analisando a amplitude na cidade de Campina Grande
+```{r}
+semanais_cg<-semanais %>% filter(cidade=="Campina Grande")
+summary(semanais_cg$amplitude)
+```
+
+
+Pela análise acima, constata-se que a cidade de Campina Grande possui uma média de amplitudes de temperaturas
+semanais de 5.65ºC, enquanto a cidade de João Pessoa é de 3.02ºC. Diante disto, fica evidente que a cidade de
+Campina Grande possui uma maior amplitude de temperatura média, entretanto, iremos investigar outros fatores 
+relevantes. A seguir, um histograma com a distribuição geral de amplitudes semanais.
+
+```{r}
+hist_dif_temperatura = 
+    ggplot(data=semanais,aes(x = amplitude)) + 
+    geom_histogram(binwidth = 0.1, color = "#F6511D", fill = "white")
+hist_dif_temperatura
+```
+
+A seguir, iremos calcular estatísticas sobre os dados das diferenças.
+```{r}
+summary(semanais$amplitude)
+desvio_dif<-sd(semanais$amplitude)
+desvio_dif
+
+```
+
+
+
+A seguir, um gráfico de dispersão comparando as amplitudes a partir da análise do
+**Gráfico 7** a seguir.
+
+```{r}
+g1<-ggplot(semanais, aes(x= tmin, y=tmax ,color=cidade))+
+  geom_point()+
+     geom_smooth(aes(x = tmin, y = tmax ), method = lm, se = FALSE)+
+    labs(
+        title = "Gráfico 7 - Temperaturas mínimas e máximas - JP x CG",
+        position="plot",
+        x = "temp.mínima" ,
+        y = "temp.máxima"
+    )
+g1
+
+```
+
+Pela análise do **Gráfico 7**, constata-se que a cidade de Campina Grande possui, de forma geral, menores 
+temperaturas máximas semanais. Já a cidade de João Pessoa, possui de forma geral, maiores temperaturas
+mínimas semanais. A partir do padrão do **Gráfico 7**, verificamos correlações entre as variáveis temperaturas máximas
+e mínimas semanais nas cidades de João Pessoa e Campina Grande. A seguir, iremos calcular a força dessa correlação.
+
+```{r}
+semanais %>% 
+  filter(!is.na(tmin), !is.na(tmax)) %>% 
+  group_by(cidade) %>% 
+  summarise(
+    pearson = cor(tmin,tmax,method = "pearson"), 
+    spearman = cor(tmin,tmax, method = "spearman"), 
+    kendall = cor(tmin,tmax, method = "kendall")
+  )
+```
+
+A partir dos resultados das correlações, percebemos uma relação forte entre as variáveis temperatura máxima semanal
+e temperatura média semanal. 
+
+
+```{r}
+dados_cg<-semanais%>%filter(cidade=="Campina Grande")
+regressao_cg<-lm(tmax~tmin,data=dados_cg) 
+regressao_cg
+summary(regressao_cg)
+
+```
+
+
+Fazendo a mesma análise para a cidade de João Pessoa:
+```{r}
+dados_jp<-semanais%>%filter(cidade=="João Pessoa")
+regressao_jp<-lm(tmax~tmin,data=dados_jp) 
+regressao_jp
+summary(regressao_jp)
+```
+Queremos agora entender como esses dados estão distribuídos, para isso, será impresso
+o **Gráfico 8** que compara os boxplots das cidades de João Pessoa e Campina Grande.
+
+# boxplot
+```{r}
+  box_temperaturas_max_semanais = semanais %>%
+   ggplot(aes(x = cidade, y = tmax)) + 
+   geom_boxplot(coef = 1000, width = .2) +
+   scale_y_continuous(name="Temp. Máxima Semanal",breaks=seq(15,40, by = 1))
+
+   box_temperatura_min_semanais = semanais %>% 
+   ggplot(aes(x = cidade, y = tmin)) + 
+   geom_boxplot(coef = 1000, width = .2)+
+   scale_y_continuous(name="Temp. Mínima Semanal",breaks=seq(15,40, by = 1))
+   
+
+   grid.arrange (box_temperaturas_max_semanais,  box_temperatura_min_semanais ,ncol = 3,
+    top = textGrob("Gráfico 8 - Amplitude (Máxima semanal x Mínima semanal)",gp=gpar(fontsize=12)))
+```
+
+Pela análise dos boxplots, percebemos que as temperaturas máximas semanais de João Pessoa possuem uma maior
+variação do que as de Campina Grande. Ambas as cidades possuem médias de temperaturas máximas muito próximas.
+Já na análise da temperatura mínima semanal, de forma geral, a cidade de João Pessoa possui temperaturas mínimas
+maiores do que a cidade de Campina Grande.
+
+Fazendo uma análise conjunta das diferenças entre as temperaturas máximas e mínimas contemplando as duas cidades, 
+temos a seguinte tabela:
+ 
+ ```{r}  
+    tabela_organizada <- data.frame(Tipo = c("Média temperaturas máximas", "Média temperaturas mínimas", "Amplitude"),     media = c(mean(semanais$tmax),mean(semanais$tmin) , mean(semanais$amplitude)), desvio = c(sd(semanais$tmax),sd(semanais$tmin) , sd(semanais$amplitude)) )
+    
+    kable(tabela_organizada, format = 'html') %>%
+    kable_styling(bootstrap_options = c('hover', 'striped'))
+```
+Pela análise da tabela acima, perceba que as diferenças entre as temperaturas máximas semanais e as temperaturas médias semanais são bem maiores na cidade de Campina Grande quando observados os quartis, as medianas e as médias. Diante da análise, podemos dizer que as temperaturas de pico diferem das temperaturas médias com diferença média de 9,42ºC. Para facilitar, veja o **Gráfico 9** que mostra a diferença global entre as médias das amplitudes.
+
+A partir de um gráfico de densidade é possível visualizar a distribuição de amplitude de temperatura
+entre as cidades.
+
+Gráfico de densidade
+```{r}
+semanais %>%
+    ggplot(aes(x = tmin, fill = cidade)) + 
+    geom_density(alpha = .4)
+
+semanais %>%
+    ggplot(aes(x = tmax, fill = cidade)) + 
+    geom_density(alpha = .4)
+    
+semanais %>%
+    ggplot(aes(x = amplitude, fill = cidade)) + 
+    geom_density(alpha = .4)
+```
+
+ 
+Perceba que a comparação dos boxplots deixa evidente a diferença entre as temperaturas mínimas e das temperaturas máximas (picos) semanais.
+
+
+<br></br><br><br/>
+       
+    
+
+
+
+### PERGUNTA 2: Qual o São João de Campina Grande que houve a maior amplitude de temperatura mensal? Faça uma análise anual da variação
+### das amplitudes ao longo dos anos desses meses de festa.
+
+Primeiramente, iremos filtrar os dados de temperatura da cidade de Campina Grande ao longo do mês de junho. Após, eles
+serão agrupados por ano e mês. Depois serão sumarizados as médias mensais de amplitude de temperatura. Por fim, serão colocadas
+em ordem descendente.
+
+```{r}
+sao_joao_frio_cg<-semanais %>%
+    filter(cidade=="Campina Grande" & mes==6) %>%
+    group_by(ano,mes) %>%
+    summarize(amplitude_media=mean(amplitude)) %>%
+    arrange(desc(amplitude_media))
+ sao_joao_frio_cg
+```
+
+No **Gráfico 9** é vista a análise anual da variação das amplitudes ao longo dos anos desses meses de festa. A amplitude mensal maior de
+temperatura foi no são joão do ano de 2016 no valor de 10.8ºC.
+
+```{r}
+semanais%>%
+    filter(ano >= 1998, ano < 2019, mes==6) %>% 
+    group_by(ano,mes) %>%
+    summarize(amplitude_media=mean(amplitude)) %>%
+    ggplot(aes(x = ano, y = amplitude_media, group = ano)) + 
+   scale_x_continuous(name="Ano",breaks=seq(1998,2018, by = 2))+
+    scale_y_continuous(name="Amplitude",breaks=seq(1,10, by = 1))+
+   labs(title = "Gráfico 9 - Variação de amplitudes de temperaturas nos São João de CG")+
+    geom_col()
+
+```
+
+Com conclusão do relatório, percebemos a importância da análise de dados para o entendimento dos dados climáticas das cidades
+de João Pessoa e Campina Grande.
