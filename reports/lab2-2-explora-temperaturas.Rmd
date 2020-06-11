@@ -1,0 +1,179 @@
+---
+title: "FPCC2-Lab2.2 - Temperatura JP x CG - Prof. Fábio Morais"
+author: "Aluno: Ramon Nóbrega dos Santos"
+theme: sandstone
+output:
+  html_document: null
+  pdf_document: default
+  df_print: paged
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggbeeswarm)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+theme_set(theme_bw())
+```
+
+```{r read}
+climas = read_csv(here::here("data/clima_cg_jp-semanal.csv"), 
+                  col_types = "cTdddddd")
+
+glimpse(climas)
+```
+
+## Temperatura
+Questão 1: Selecionar uma pergunta do lab 2.1 para ser respondida novamente considerando o feedback do professor.
+A pergunta selecionada foi a seguinte:
+"As temperaturas máxima semanais (o pico de calor) são tão diferentes quanto as médias? Mais?
+Pelo feedback fornecido, deveria ser feita uma melhor análise da dispersão dos dados.
+
+
+```{r}
+semanais<- climas %>%
+   group_by(cidade,mes,ano) %>%
+   summarize(temp_max_semanal=max(tmax),temp_media_semanal=mean(tmedia),dif_temp_max_media=temp_max_semanal-temp_media_semanal)%>%
+    arrange(desc(dif_temp_max_media))
+
+  semanais    
+
+```
+
+
+Diferenças entre as temperaturas máximas e médias a partir da análise de um gráfico
+de dispersão.
+
+```{r}
+g1<-ggplot(semanais, aes(x= temp_media_semanal, y=temp_max_semanal ,color=cidade))+
+  geom_point()+
+    geom_smooth(aes(x = temp_media_semanal, y = temp_max_semanal ), method = lm, se = FALSE) 
+g1
+
+```
+
+Pela análise do Gráfico 1, constata-se que a cidade de Campina Grande possui, de forma geral, menores 
+temperaturas máximas e maiores temperaturas máximas semanais. Com relação as temperaturas semanais médias,
+a cidade de João Pessoa possui temperaturas semanais médias maiores do que a cidade de Campina Grande.
+
+A partir do padrão do Gráfico 1, verificamos uma correlação entre as temperaturas máximas e médias semanais
+nas cidades de João Pessoa e Campina Grande. A seguir, iremos calcular a força dessa correlação.
+
+```{r}
+semanais %>% 
+  filter(!is.na(temp_media_semanal), !is.na(temp_max_semanal)) %>% 
+  group_by(cidade) %>% 
+  summarise(
+    pearson = cor(temp_media_semanal,temp_max_semanal,method = "pearson"), 
+    spearman = cor(temp_media_semanal,temp_max_semanal, method = "spearman"), 
+    kendall = cor(temp_media_semanal,temp_max_semanal, method = "kendall")
+  )
+```
+
+A partir dos resultados das correlações, percebemos uma relação forte entre as variáveis temperatura máxima semanal
+e temperatura média semanal. 
+
+
+```{r}
+dados_cg<-semanais%>%filter(cidade=="Campina Grande")
+regressao_cg<-lm(temp_max_semanal~temp_media_semanal,data=dados_cg) 
+regressao_cg
+summary(regressao_cg)
+
+#coeficiente_correlacao_cg<-cor(temp_max_semanal,temp_media_semanal) 
+```
+
+
+Fazendo a mesma análise para a cidade de João Pessoa:
+```{r}
+dados_jp<-semanais%>%filter(cidade=="João Pessoa")
+regressao_jp<-lm(temp_max_semanal~temp_media_semanal,data=dados_jp) 
+regressao_jp
+summary(regressao_jp)
+```
+
+
+
+A seguir é mostrado o boxplot.
+# boxplot
+```{r}
+  box_temperaturas_max_semanais = semanais %>%
+   ggplot(aes(x = cidade, y = temp_max_semanal)) + 
+   geom_boxplot(coef = 1000, width = .2) +
+   scale_y_continuous(name="Temp. Máxima Semanal",breaks=seq(15,40, by = 1))
+
+   box_temperatura_media_semanais = semanais %>% 
+   ggplot(aes(x = cidade, y = temp_media_semanal)) + 
+   geom_boxplot(coef = 1000, width = .2)+
+   scale_y_continuous(name="Temp. Média Semanal",breaks=seq(15,40, by = 1))
+   
+
+   grid.arrange (box_temperaturas_max_semanais,  box_temperatura_media_semanais ,ncol = 3,
+    top = textGrob("Gráfico 2 - Temperatura Média (Máxima semanal x Média semanal x Dif.Máxima e Média)",gp=gpar(fontsize=12)))
+```
+
+Fazendo uma análise conjunta das diferenças entre as temperaturas
+média e máximas contemplando as duas cidades, temos a seguinte tabela:
+ 
+ ```{r}  
+    tabela_organizada <- data.frame(Tipo = c("Média temperaturas máximas", "Média temperaturas médias", "Diferença das médias"),     media = c(mean(semanais$temp_max_semanal),mean(semanais$temp_media_semanal) , mean(semanais$dif_temp_max_media)          ))
+    
+    kable(tabela_organizada, format = 'html') %>%
+    kable_styling(bootstrap_options = c('hover', 'striped'))
+```
+Pela análise da tabela acima, perceba que as diferenças entre as temperaturas máximas semanais e as temperaturas médias semanais são bem maiores na cidade de Campina Grande quando observados os quartis, as medianas e as médias. Diante da análise, podemos dizer que as temperatuas
+de pico diferem bastante das temperaturas médias com diferença média de 4,76 graus. Para facilitar, veja o **Gráfico 3** que mostra a diferença global entre as médias de temperaturas médias e as médias de temperaturas máximas.
+
+ ```{r}
+semanais_geral<- climas %>%
+    group_by(mes,ano) %>%
+    summarize(temp_max_semanal=max(tmax),temp_media_semanal=mean(tmedia),dif_temp_max_media=temp_max_semanal-temp_media_semanal)%>%
+     arrange(desc(dif_temp_max_media))
+   semanais    
+    
+
+    # boxplot
+   temperaturas_media_semanal = semanais_geral$temp_media_semanal
+   temperaturas_max_semanal = semanais_geral$temp_max_semanal
+
+  boxplot(temperaturas_media_semanal,temperaturas_max_semanal,main="Gráfico 3 -Média das temperaturas médias e das máximas",names=c("temp. média", "temp. máxima"),xlab="Média das médias",ylab="Temp(graus)")
+
+ ```
+ 
+ 
+Perceba que a comparação dos boxplots do **Gráfico 3** deixa clara a diferença entre as médias das temperaturas médias e das temperaturas máximas (picos)
+
+
+<br></br><br><br/>
+   
+```
+
+Para verificar se as temperaturas máximas semanais são tão diferentes quanto as médias, calcularemos os
+desvio-padrão de cada uma delas.
+
+
+### PERGUNTA 1: Qual a cidade que possui maior amplitude térmica? 
+
+
+
+ ```{r}
+semanais_geral<- climas %>%
+    summarize(temp_max_semanal=max(tmax),temp_min_semanal=min(tmin),amplitude=temp_max_semanal-temp_min_semanal)%>%
+     arrange(desc(amplitude))
+   semanais    
+    
+
+    # boxplot
+   temperaturas_minima_semanal = semanais_geral$temp_min_semanal
+   temperaturas_maxima_semanal = semanais_geral$temp_max_semanal
+
+  boxplot(temperaturas_minima_semanal,temperaturas_max_semanal,main="Gráfico 3 -Amplitude Térmica",names=c("temp. média", "temp. máxima"),xlab="Média das médias",ylab="Temp(graus)")
+
+ ```
+
+
+### PERGUNTA 2: Qual o São João que houve a maior amplitude térmica? 
+
